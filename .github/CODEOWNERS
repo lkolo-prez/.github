@@ -1,0 +1,33 @@
+# Organization-default CODEOWNERS.
+#
+# This file lives in the special `.github` repo. GitHub uses a repo's OWN .github/CODEOWNERS first;
+# if a repo has none, GitHub falls back to THIS org-default. Keep teams here generic; per-repo repos
+# may add a more specific CODEOWNERS.
+#
+# Syntax: <path pattern>  <owner> [<owner> ...]   (last matching pattern wins)
+# Owners must have write access. Required-review enforcement is configured in the org ruleset
+# (see docs/BRANCH-PROTECTION.md).
+
+# Default owners for everything in the org.
+*                               @aircloud/maintainers
+
+# Platform / CI ownership — the reusable workflows and anything that affects every repo.
+/.github/                       @aircloud/platform @aircloud/security
+/.github/workflows/             @aircloud/platform @aircloud/security
+/examples/                      @aircloud/platform
+
+# Security-sensitive governance files require the security team.
+/SECURITY.md                    @aircloud/security
+/CODE_OF_CONDUCT.md             @aircloud/maintainers @aircloud/community
+/GOVERNANCE.md                  @aircloud/maintainers
+/.github/dependabot.yml         @aircloud/platform @aircloud/security
+
+# Documentation.
+/docs/                          @aircloud/platform @aircloud/docs
+*.md                            @aircloud/docs
+
+# AI assistant configuration — kept in sync with real repo commands.
+/CLAUDE.md                      @aircloud/platform
+/AGENTS.md                      @aircloud/platform
+/.github/copilot-instructions.md @aircloud/platform
+/.cursor/                       @aircloud/platform

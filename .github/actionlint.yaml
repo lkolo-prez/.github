@@ -1,0 +1,5 @@
+# actionlint configuration. Declare self-hosted/custom runner labels here if you add any, so actionlint
+# doesn't warn about unknown labels. We currently use GitHub-hosted runners only.
+self-hosted-runner:
+  labels: []
+  # config-variables: null  # set to a list to restrict allowed `vars.*`, or leave commented to allow any.

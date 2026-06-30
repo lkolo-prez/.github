@@ -1,0 +1,86 @@
+# Dependabot configuration for the org `.github` repo.
+#
+# NOTE: dependabot.yml is NOT inherited org-wide (only community health files are). This file keeps THIS
+# repo's GitHub Actions up to date. Copy it as a starting point into other repos and add their ecosystems.
+#
+# We group updates to keep PR noise low, and we still require the updated SHA to be reviewed (the org
+# ruleset enforces required checks + CODEOWNERS review on the bump PRs).
+version: 2
+
+updates:
+  # GitHub Actions used by THIS repo's own workflows (scorecard.yml, actionlint.yml).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "ci"
+      include: scope
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      # One PR for all minor/patch action bumps.
+      actions-minor:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      # Major bumps reviewed individually but still grouped per-action by Dependabot defaults.
+      actions-major:
+        applies-to: version-updates
+        update-types:
+          - major
+
+  # Also watch the reusable workflow files for actions referenced inside them.
+  - package-ecosystem: github-actions
+    directory: /.github/workflows
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Warsaw
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "ci"
+      include: scope
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      reusable-workflow-actions:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+          - major
+
+  # Devcontainer / common ecosystems below are templates: enable per repo as needed.
+  # - package-ecosystem: docker
+  #   directory: /
+  #   schedule: { interval: weekly }
+  #   groups:
+  #     docker:
+  #       patterns: ["*"]
+  # - package-ecosystem: npm
+  #   directory: /
+  #   schedule: { interval: weekly }
+  #   versioning-strategy: increase-if-necessary
+  #   groups:
+  #     npm-dev:
+  #       dependency-type: development
+  #     npm-prod:
+  #       dependency-type: production
+  # - package-ecosystem: pip
+  #   directory: /
+  #   schedule: { interval: weekly }
+  # - package-ecosystem: gomod
+  #   directory: /
+  #   schedule: { interval: weekly }
+  # - package-ecosystem: terraform
+  #   directory: /
+  #   schedule: { interval: weekly }

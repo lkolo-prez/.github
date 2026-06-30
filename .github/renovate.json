@@ -1,0 +1,45 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits",
+    ":enablePreCommit",
+    ":dependencyDashboard"
+  ],
+  "timezone": "Europe/Warsaw",
+  "schedule": ["before 7am on monday"],
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "configMigration": true,
+  "lockFileMaintenance": { "enabled": true },
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "schedule": ["at any time"]
+  },
+  "packageRules": [
+    {
+      "description": "Keep GitHub Actions pinned to digests; group minor/patch into one PR.",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true,
+      "groupName": "github-actions (minor/patch)",
+      "matchUpdateTypes": ["minor", "patch", "digest"]
+    },
+    {
+      "description": "Open major action bumps individually for review.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "github-actions (major)"
+    },
+    {
+      "description": "Bump the pinned SHA of the org reusable workflows referenced in examples.",
+      "matchFileNames": ["examples/**"],
+      "groupName": "aircloud reusable workflows"
+    }
+  ],
+  "github-actions": {
+    "fileMatch": ["^.github/workflows/[^/]+\\.ya?ml$", "^examples/[^/]+\\.ya?ml$"]
+  }
+}

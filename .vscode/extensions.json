@@ -1,0 +1,18 @@
+{
+  "// note": "Recommended extensions for working on this org-defaults repo (workflows, YAML, security).",
+  "recommendations": [
+    "github.vscode-github-actions",
+    "redhat.vscode-yaml",
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode",
+    "davidanson.vscode-markdownlint",
+    "github.vscode-pull-request-github",
+    "github.copilot",
+    "github.copilot-chat",
+    "ms-azuretools.vscode-docker",
+    "tamasfe.even-better-toml",
+    "exiasr.hadolint",
+    "hashicorp.terraform"
+  ],
+  "unwantedRecommendations": []
+}

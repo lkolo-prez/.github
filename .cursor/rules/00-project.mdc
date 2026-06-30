@@ -1,0 +1,39 @@
+---
+description: Project-wide rules for aircloud/.github (org defaults & reusable workflows)
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# aircloud/.github — Cursor project rules
+
+You are working in the `aircloud` org's special **`.github`** repository: org-default community health files
+(inherited by repos without their own), the public org profile (`profile/README.md`), and **reusable
+workflows** (`.github/workflows/reusable-*.yml`, `on: workflow_call`) that other repos call by commit SHA.
+
+`aircloud`, `ghcr.io/aircloud`, and the Azure prefix `aircloud` are **placeholders** — never hardcode them
+where an input/variable is expected.
+
+## Always
+
+- Pin every GitHub Action to a **full 40-hex commit SHA** with a trailing `# vX.Y.Z` comment. Never `@v4`/`@main`.
+- Keep top-level `permissions: { contents: read }`; elevate per-job only as needed.
+- Make `step-security/harden-runner` the **first step of every job**.
+- Give every workflow a `concurrency:` group.
+- Use **Azure OIDC** for cloud auth and **cosign keyless** for signing. No long-lived secrets.
+- Use **Conventional Commits** and keep commits **signed**.
+- Reference real commands from the `Makefile` (`make setup|lint|format|test|security|sbom|build|run|clean`).
+
+## Never
+
+- Never unpin actions, remove `harden-runner`, or widen `permissions` to make CI pass.
+- Never add secrets/credentials to code or examples.
+- Never change a reusable workflow's inputs/secrets/outputs or default behavior without marking it **breaking**
+  (`!` / `BREAKING CHANGE:`); prefer new inputs with safe defaults.
+
+## Reusable workflows are versioned (SemVer)
+
+Consumers **pin by SHA**, so old pins keep working — don't rewrite history. Document every input/secret/output
+in the workflow header and `README.md`. After a release, bump the SHA in `examples/consumer-ci.yml`.
+
+See `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, and `docs/ARCHITECTURE.md` for the full picture.

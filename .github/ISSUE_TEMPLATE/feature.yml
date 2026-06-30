@@ -1,0 +1,58 @@
+name: "Feature request"
+description: "Suggest an idea or enhancement. Prefix with 'RFC:' for substantial changes."
+title: "feat: <short description>"
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! For substantial or cross-cutting changes (especially to the reusable
+        workflows), prefix the title with **`RFC:`** and fill in the design and migration sections —
+        see [GOVERNANCE.md](https://github.com/aircloud/.github/blob/main/GOVERNANCE.md#rfc-process).
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I searched existing issues and discussions and found no duplicate.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve? Who is affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the change you'd like. For reusable workflows, list new inputs/secrets/outputs.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Is this a breaking change?
+      description: Breaking changes to reusable workflows trigger a major SemVer bump.
+      options:
+        - "No — backward compatible"
+        - "Yes — breaking (callers must change)"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration / rollout plan (for breaking or cross-cutting changes)
+      description: How do consumers adopt this? How do they stay safe (SHA pinning, versioning)?

@@ -1,0 +1,208 @@
+# Reusable security workflow: gitleaks + Trivy (filesystem) + Semgrep + dependency-review + OpenSSF Scorecard.
+#
+# Usage:
+#   jobs:
+#     security:
+#       uses: aircloud/.github/.github/workflows/reusable-security.yml@<40-hex-sha> # vX.Y.Z
+#       with:
+#         run-scorecard: true
+#       permissions:
+#         contents: read
+#         security-events: write
+#         pull-requests: read
+#         id-token: write   # required only for Scorecard publish
+#
+# Inputs:
+#   semgrep-config        Semgrep ruleset(s)   (default "p/default p/secrets p/ci")
+#   trivy-severity        Severities to flag   (default "CRITICAL,HIGH")
+#   trivy-exit-code       1 to fail build on findings, 0 to report-only  (default 1)
+#   run-dependency-review Run dependency-review (PRs only)  (default true)
+#   run-scorecard         Run OpenSSF Scorecard (default branch)  (default false)
+#   runs-on               Runner label  (default ubuntu-24.04)
+# Secrets:
+#   gitleaks-license      (optional) gitleaks org license; not needed for public repos / open-source gitleaks.
+#   semgrep-app-token     (optional) Semgrep AppSec Platform token for findings upload.
+name: reusable-security
+
+on:
+  workflow_call:
+    inputs:
+      semgrep-config:
+        required: false
+        type: string
+        default: "p/default p/secrets p/ci"
+      trivy-severity:
+        required: false
+        type: string
+        default: "CRITICAL,HIGH"
+      trivy-exit-code:
+        required: false
+        type: number
+        default: 1
+      run-dependency-review:
+        required: false
+        type: boolean
+        default: true
+      run-scorecard:
+        required: false
+        type: boolean
+        default: false
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-24.04"
+    secrets:
+      gitleaks-license:
+        required: false
+      semgrep-app-token:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reusable-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: gitleaks (secret scan)
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # full history so gitleaks can scan all commits
+          persist-credentials: false
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@83373cf2f8c4db6e24b41c1a9b086bb9619e9cd3 # v2.3.7
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.gitleaks-license }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+  trivy-fs:
+    name: Trivy (filesystem / IaC / vuln)
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Trivy filesystem scan (SARIF)
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-fs.sarif
+          severity: ${{ inputs.trivy-severity }}
+          exit-code: "0" # always produce SARIF; gating happens in the next step
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3.27.4
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+      - name: Trivy gate (fail on findings)
+        if: inputs.trivy-exit-code == 1
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          format: table
+          severity: ${{ inputs.trivy-severity }}
+          exit-code: "1"
+          ignore-unfixed: true
+
+  semgrep:
+    name: Semgrep (SAST)
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1.95.0
+        with:
+          config: ${{ inputs.semgrep-config }}
+          generateSarif: "1"
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.semgrep-app-token }}
+      - name: Upload Semgrep SARIF
+        if: always() && hashFiles('semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3.27.4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  dependency-review:
+    name: Dependency review (PR)
+    if: ${{ inputs.run-dependency-review && github.event_name == 'pull_request' }}
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      pull-requests: write # to post the summary comment
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Dependency review
+        uses: actions/dependency-review-action@4081bf99e2866ebe428fc0477b69eb4fcda7220a # v4.4.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  scorecard:
+    name: OpenSSF Scorecard
+    if: ${{ inputs.run-scorecard && github.event_name != 'pull_request' }}
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write # to publish results to the public Scorecard API
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46 # v2.4.0
+        with:
+          results_file: scorecard.sarif
+          results_format: sarif
+          publish_results: true
+      - name: Upload Scorecard SARIF
+        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3.27.4
+        with:
+          sarif_file: scorecard.sarif
+          category: scorecard

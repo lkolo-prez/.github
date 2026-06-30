@@ -1,0 +1,15 @@
+# Issue template chooser configuration.
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Report a security vulnerability (private)
+    url: https://github.com/aircloud/.github/security/advisories/new
+    about: "Please report vulnerabilities privately. Do NOT open a public issue. See SECURITY.md."
+  - name: 💬 Questions & discussions
+    url: https://github.com/orgs/aircloud/discussions
+    about: "Ask how-to questions and discuss ideas in GitHub Discussions."
+  - name: 📚 Documentation & reusable workflows
+    url: https://github.com/aircloud/.github#reusable-workflows
+    about: "Read about the org-default community files and reusable CI/CD workflows."
+  - name: 🆘 Support policy
+    url: https://github.com/aircloud/.github/blob/main/SUPPORT.md
+    about: "How to get help and what response to expect."

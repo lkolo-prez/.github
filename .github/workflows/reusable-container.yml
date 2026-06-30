@@ -1,0 +1,230 @@
+# Reusable container workflow:
+#   buildx build  ->  Syft SBOM (CycloneDX)  ->  push to GHCR by digest
+#   ->  cosign keyless sign  ->  SLSA build-provenance attestation  ->  SBOM attestation  ->  Trivy image scan.
+#
+# Usage:
+#   jobs:
+#     container:
+#       uses: aircloud/.github/.github/workflows/reusable-container.yml@<40-hex-sha> # vX.Y.Z
+#       with:
+#         image-name: ghcr.io/aircloud/my-service
+#         context: .
+#         dockerfile: ./Dockerfile
+#         push: ${{ github.event_name != 'pull_request' }}
+#       permissions:
+#         contents: read
+#         packages: write       # push to GHCR
+#         id-token: write       # cosign keyless + attestations (OIDC)
+#         attestations: write   # GitHub build-provenance / SBOM attestations
+#         security-events: write
+#
+# Inputs:
+#   image-name      (required) full image ref WITHOUT tag/digest, e.g. ghcr.io/aircloud/my-service
+#   context         Build context        (default ".")
+#   dockerfile      Path to Dockerfile   (default "./Dockerfile")
+#   platforms       Buildx platforms     (default "linux/amd64")
+#   push            Push to registry     (default false; set true on non-PR)
+#   build-args      Multiline KEY=VALUE build args  (default "")
+#   trivy-severity  Severities to fail on (default "CRITICAL,HIGH")
+#   runs-on         Runner label         (default "ubuntu-24.04")
+# Secrets: none — GHCR auth uses the job GITHUB_TOKEN; signing/attestation use OIDC.
+name: reusable-container
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        required: true
+        type: string
+      context:
+        required: false
+        type: string
+        default: "."
+      dockerfile:
+        required: false
+        type: string
+        default: "./Dockerfile"
+      platforms:
+        required: false
+        type: string
+        default: "linux/amd64"
+      push:
+        required: false
+        type: boolean
+        default: false
+      build-args:
+        required: false
+        type: string
+        default: ""
+      trivy-severity:
+        required: false
+        type: string
+        default: "CRITICAL,HIGH"
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-24.04"
+    outputs:
+      digest:
+        description: "The pushed image digest (sha256:...)."
+        value: ${{ jobs.build.outputs.digest }}
+      image-ref:
+        description: "Fully-qualified image@digest reference."
+        value: ${{ jobs.build.outputs.image-ref }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reusable-container-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build · sbom · sign · attest · scan
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      packages: write # push image to GHCR
+      id-token: write # OIDC for cosign keyless + attestations
+      attestations: write # GitHub build-provenance & SBOM attestations
+      security-events: write # upload Trivy SARIF
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image-ref: ${{ steps.ref.outputs.image-ref }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3.2.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+
+      - name: Log in to GHCR
+        if: inputs.push
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
+        with:
+          images: ${{ inputs.image-name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=long
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
+
+      - name: Build and push (by digest)
+        id: build
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          load: ${{ !inputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ inputs.build-args }}
+          provenance: false # we attach SLSA provenance explicitly via attest-build-provenance
+          sbom: false # we generate the SBOM explicitly with Syft (CycloneDX)
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: ${{ inputs.push && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', inputs.image-name) || 'type=docker' }}
+
+      - name: Compute image@digest reference
+        id: ref
+        if: inputs.push
+        env:
+          IMAGE: ${{ inputs.image-name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "image-ref=${IMAGE}@${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate CycloneDX SBOM (Syft)
+        env:
+          # When pushing we scan the registry image by digest; otherwise the locally-loaded tag.
+          TARGET: ${{ inputs.push && format('{0}@{1}', inputs.image-name, steps.build.outputs.digest) || fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          set -euo pipefail
+          syft scan "registry:${TARGET}" -o cyclonedx-json=sbom.cdx.json || \
+          syft scan "${TARGET}" -o cyclonedx-json=sbom.cdx.json
+          echo "SBOM components: $(jq '.components | length' sbom.cdx.json)"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          if-no-files-found: error
+
+      - name: Sign image (cosign keyless)
+        if: inputs.push
+        env:
+          COSIGN_YES: "true"
+          IMAGE_REF: ${{ steps.ref.outputs.image-ref }}
+        run: cosign sign --recursive "${IMAGE_REF}"
+
+      - name: Attest SLSA build provenance
+        if: inputs.push
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: ${{ inputs.image-name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM
+        if: inputs.push
+        uses: actions/attest-sbom@115c3be05ff3974bcbd596578934b3f9ce39bf68 # v2.1.0
+        with:
+          subject-name: ${{ inputs.image-name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom.cdx.json
+          push-to-registry: true
+
+      - name: Trivy image scan (SARIF)
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          scan-type: image
+          image-ref: ${{ inputs.push && steps.ref.outputs.image-ref || fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: sarif
+          output: trivy-image.sarif
+          severity: ${{ inputs.trivy-severity }}
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload Trivy image SARIF
+        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3.27.4
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+      - name: Trivy image gate (fail on findings)
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
+        with:
+          scan-type: image
+          image-ref: ${{ inputs.push && steps.ref.outputs.image-ref || fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          severity: ${{ inputs.trivy-severity }}
+          ignore-unfixed: true
+          exit-code: "1"

@@ -1,0 +1,38 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.eol": "\n",
+
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml",
+    "editor.tabSize": 2,
+    "editor.autoIndent": "advanced"
+  },
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  },
+  "[makefile]": {
+    "editor.insertSpaces": false
+  },
+
+  "yaml.format.enable": true,
+  "yaml.validate": true,
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": [
+      ".github/workflows/*.yml",
+      ".github/workflows/*.yaml",
+      "examples/*.yml"
+    ],
+    "https://json.schemastore.org/github-issue-forms.json": [".github/ISSUE_TEMPLATE/*.yml"],
+    "https://json.schemastore.org/dependabot-2.0.json": [".github/dependabot.yml"]
+  },
+
+  "github-actions.workflows.pinned.workflows": [
+    ".github/workflows/actionlint.yml",
+    ".github/workflows/scorecard.yml"
+  ],
+
+  "redhat.telemetry.enabled": false
+}

@@ -1,0 +1,253 @@
+# Reusable Terraform workflow:
+#   fmt -> validate -> tflint -> tfsec -> checkov -> conftest(OPA) -> plan (via Azure OIDC) -> PR comment.
+#
+# Usage:
+#   jobs:
+#     terraform:
+#       uses: aircloud/.github/.github/workflows/reusable-terraform.yml@<40-hex-sha> # vX.Y.Z
+#       with:
+#         working-directory: infra/envs/dev
+#         terraform-version: "1.9.8"
+#       permissions:
+#         contents: read
+#         id-token: write        # Azure OIDC (azure/login federated credentials)
+#         pull-requests: write   # post the plan comment
+#       secrets:
+#         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+#         azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+#         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+#
+# NO long-lived credentials: authentication to Azure uses GitHub OIDC federated credentials. The "secrets"
+# below are non-sensitive identifiers (client/tenant/subscription IDs), passed as repo/org secrets for
+# convenience; there is no client secret. Backend access uses the OIDC-obtained token.
+#
+# Inputs:
+#   working-directory   Terraform root module dir  (default ".")
+#   terraform-version   Terraform version          (default "1.9.8")
+#   tflint-version      TFLint version             (default "v0.54.0")
+#   run-plan            Run terraform plan          (default true)
+#   conftest-policy     OPA/conftest policy dir     (default "policy")
+#   azure-environment   azure/login environment     (default "AzureCloud")
+#   runs-on             Runner label                (default "ubuntu-24.04")
+# Secrets:
+#   azure-client-id        (required if run-plan) federated app (client) ID
+#   azure-tenant-id        (required if run-plan) Entra tenant ID
+#   azure-subscription-id  (required if run-plan) subscription ID
+name: reusable-terraform
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: false
+        type: string
+        default: "."
+      terraform-version:
+        required: false
+        type: string
+        default: "1.9.8"
+      tflint-version:
+        required: false
+        type: string
+        default: "v0.54.0"
+      run-plan:
+        required: false
+        type: boolean
+        default: true
+      conftest-policy:
+        required: false
+        type: string
+        default: "policy"
+      azure-environment:
+        required: false
+        type: string
+        default: "AzureCloud"
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-24.04"
+    secrets:
+      azure-client-id:
+        required: false
+      azure-tenant-id:
+        required: false
+      azure-subscription-id:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reusable-terraform-${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: fmt · validate · lint · scan · policy
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      security-events: write # upload tfsec/checkov SARIF
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: terraform fmt (check)
+        run: terraform fmt -check -recursive
+
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate -no-color
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
+        with:
+          tflint_version: ${{ inputs.tflint-version }}
+      - name: tflint
+        run: |
+          tflint --init
+          tflint --recursive --format compact
+
+      - name: tfsec (SARIF)
+        uses: aquasecurity/tfsec-sarif-action@21ded20e8ca120cd9d3d6ab04ef746477542a608 # v0.1.4
+        with:
+          working_directory: ${{ inputs.working-directory }}
+          sarif_file: tfsec.sarif
+      - name: Upload tfsec SARIF
+        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3.27.4
+        with:
+          sarif_file: ${{ inputs.working-directory }}/tfsec.sarif
+          category: tfsec
+
+      - name: Checkov (IaC scan, SARIF)
+        uses: bridgecrewio/checkov-action@38a95e98d734de90b74687a0fc94cf81b04f9f00 # v12.2937.0
+        with:
+          directory: ${{ inputs.working-directory }}
+          framework: terraform
+          output_format: sarif
+          output_file_path: checkov.sarif
+          soft_fail: false
+      - name: Upload Checkov SARIF
+        if: always() && hashFiles(format('{0}/checkov.sarif', inputs.working-directory)) != ''
+        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3.27.4
+        with:
+          sarif_file: ${{ inputs.working-directory }}/checkov.sarif
+          category: checkov
+
+      - name: conftest (OPA policy)
+        if: hashFiles(format('{0}/{1}/**', inputs.working-directory, inputs.conftest-policy)) != ''
+        uses: instrumenta/conftest-action@a2bca91e9b1b073f2bb7a1c92ddaa2e0b906aa84 # main pinned by SHA
+        with:
+          files: ${{ inputs.working-directory }}
+          policy: ${{ inputs.working-directory }}/${{ inputs.conftest-policy }}
+
+  plan:
+    name: plan (Azure OIDC)
+    needs: validate
+    if: ${{ inputs.run-plan }}
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      id-token: write # Azure OIDC federated login (no client secret)
+      pull-requests: write # post plan summary comment
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Azure login (OIDC / federated credentials)
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        with:
+          client-id: ${{ secrets.azure-client-id }}
+          tenant-id: ${{ secrets.azure-tenant-id }}
+          subscription-id: ${{ secrets.azure-subscription-id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: terraform init
+        # Backend auth flows through the OIDC token established by azure/login.
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ secrets.azure-client-id }}
+          ARM_TENANT_ID: ${{ secrets.azure-tenant-id }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.azure-subscription-id }}
+        run: terraform init
+
+      - name: terraform plan
+        id: plan
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ secrets.azure-client-id }}
+          ARM_TENANT_ID: ${{ secrets.azure-tenant-id }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.azure-subscription-id }}
+        run: |
+          set -euo pipefail
+          terraform plan -no-color -input=false -lock-timeout=120s -out=tfplan | tee plan.txt
+          {
+            echo 'summary<<EOF'
+            # Keep the comment small: show the plan, truncated.
+            head -c 60000 plan.txt
+            echo
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          PLAN: ${{ steps.plan.outputs.summary }}
+          WORKDIR: ${{ inputs.working-directory }}
+        with:
+          script: |
+            const body = [
+              '### Terraform plan — `' + process.env.WORKDIR + '`',
+              '',
+              '<details><summary>Show plan</summary>',
+              '',
+              '```hcl',
+              process.env.PLAN || '(no changes)',
+              '```',
+              '</details>',
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const marker = '<!-- tf-plan:' + process.env.WORKDIR + ' -->';
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            const full = marker + '\n' + body;
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: full });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: full });
+            }

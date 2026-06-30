@@ -1,0 +1,54 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+*.iml
+
+# Logs / temp
+*.log
+tmp/
+.tmp/
+
+# Secrets — never commit (gitleaks enforces this anyway)
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+secrets.*
+
+# Tooling output / caches
+.cache/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+coverage/
+*.coverage
+coverage.xml
+htmlcov/
+.scannerwork/
+
+# SBOM / scan artifacts produced locally
+sbom*.json
+sbom*.xml
+trivy-results.*
+*.sarif
+
+# Terraform (in case examples are added)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+
+# Node (if local tooling is added)
+node_modules/
+
+# Python virtualenvs (local tooling)
+.venv/
+venv/
+__pycache__/

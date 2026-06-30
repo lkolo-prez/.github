@@ -1,0 +1,25 @@
+# Normalize line endings to LF on checkin
+* text=auto eol=lf
+
+# Explicitly mark text formats
+*.md      text
+*.yml     text
+*.yaml    text
+*.json    text
+*.sh      text eol=lf
+*.tf      text
+Makefile  text
+
+# Binary assets
+*.png     binary
+*.jpg     binary
+*.gif     binary
+*.ico     binary
+*.pdf     binary
+
+# Keep diffs clean for generated/lock content
+*.lock    linguist-generated=true
+
+# GitHub Linguist: don't count examples/docs against language stats
+examples/** linguist-documentation
+docs/**     linguist-documentation

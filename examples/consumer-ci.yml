@@ -1,0 +1,102 @@
+# EXAMPLE: a downstream repo's CI that composes the aircloud reusable workflows.
+#
+# Copy this into a consuming repo as `.github/workflows/ci.yml` and adjust inputs.
+#
+# IMPORTANT: pin each reusable workflow to a FULL 40-hex commit SHA of aircloud/.github (the trailing
+# `# vX.Y.Z` is just a human-readable hint). Renovate/Dependabot will open PRs to bump these SHAs.
+# Replace <SHA-OF-AIRCLOUD-DOTGITHUB> below with a real release commit SHA before use.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Allow release-please / scorecard to run on schedule from the default branch.
+  schedule:
+    - cron: "17 5 * * 1"
+
+# Least-privilege at the top; each called workflow elevates only what it needs (declared below per job).
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Build & test
+    uses: aircloud/.github/.github/workflows/reusable-ci.yml@1111111111111111111111111111111111111111 # v1.0.0
+    with:
+      language: node
+      node-version: "20"
+      coverage-threshold: 80
+    permissions:
+      contents: read
+
+  codeql:
+    name: CodeQL
+    uses: aircloud/.github/.github/workflows/reusable-codeql.yml@1111111111111111111111111111111111111111 # v1.0.0
+    with:
+      languages: '["javascript-typescript"]'
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+  security:
+    name: Security
+    uses: aircloud/.github/.github/workflows/reusable-security.yml@1111111111111111111111111111111111111111 # v1.0.0
+    with:
+      run-scorecard: ${{ github.event_name != 'pull_request' }}
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+      id-token: write
+    # secrets are optional; gitleaks/semgrep run without them on public repos:
+    # secrets:
+    #   gitleaks-license: ${{ secrets.GITLEAKS_LICENSE }}
+    #   semgrep-app-token: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  container:
+    name: Container
+    needs: [ci]
+    # Only build & push images off PRs (push by digest happens only when push=true).
+    uses: aircloud/.github/.github/workflows/reusable-container.yml@1111111111111111111111111111111111111111 # v1.0.0
+    with:
+      image-name: ghcr.io/aircloud/${{ github.event.repository.name }}
+      context: .
+      dockerfile: ./Dockerfile
+      push: ${{ github.event_name != 'pull_request' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      security-events: write
+
+  terraform:
+    name: Terraform (dev)
+    uses: aircloud/.github/.github/workflows/reusable-terraform.yml@1111111111111111111111111111111111111111 # v1.0.0
+    with:
+      working-directory: infra/envs/dev
+      terraform-version: "1.9.8"
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    secrets:
+      azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: aircloud/.github/.github/workflows/reusable-release.yml@1111111111111111111111111111111111111111 # v1.0.0
+    with:
+      release-type: node
+    permissions:
+      contents: write
+      pull-requests: write

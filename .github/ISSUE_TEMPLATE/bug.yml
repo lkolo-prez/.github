@@ -1,0 +1,89 @@
+name: "Bug report"
+description: "Report a reproducible problem in an aircloud project."
+title: "fix: <short description>"
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill in the details below.
+
+        > [!CAUTION]
+        > **Do not report security vulnerabilities here.** Follow our [Security Policy](https://github.com/aircloud/.github/blob/main/SECURITY.md) for private disclosure.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I searched existing issues and discussions and found no duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go through private reporting).
+          required: true
+        - label: I am running a supported version.
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug, including the impact.
+      placeholder: When I run ..., I get ... instead of ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, complete steps. Include commands and config.
+      placeholder: |
+        1. ...
+        2. ...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit SHA / image digest
+      placeholder: "v1.4.2 / abcd123 / ghcr.io/aircloud/app@sha256:..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Reusable workflow (CI)
+        - Reusable workflow (container)
+        - Reusable workflow (terraform)
+        - Reusable workflow (security/codeql/release)
+        - Community health files / templates
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, runner (e.g. ubuntu-24.04), tool versions, relevant CI run URL.
+      render: text
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / output
+      description: Paste logs. This will be rendered as a code block (no need for backticks).
+      render: shell

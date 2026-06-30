@@ -1,0 +1,188 @@
+# Reusable CI workflow: lint + format-check + typecheck + test + coverage gate + build.
+#
+# Usage (from a consumer repo, pin THIS workflow by SHA):
+#   jobs:
+#     ci:
+#       uses: aircloud/.github/.github/workflows/reusable-ci.yml@<40-hex-sha> # vX.Y.Z
+#       with:
+#         language: node            # node | python | go
+#         node-version: "20"
+#         coverage-threshold: 80
+#       permissions:
+#         contents: read
+#
+# Inputs:
+#   language            (required) one of: node | python | go
+#   node-version        Node.js version            (default "20")
+#   python-version      Python version             (default "3.12")
+#   go-version          Go version                 (default "1.22")
+#   working-directory   Subdir to run in           (default ".")
+#   coverage-threshold  Min % line coverage gate   (default 0 = disabled)
+#   runs-on             Runner label               (default "ubuntu-24.04")
+# Secrets: none (this workflow needs no secrets).
+name: reusable-ci
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        description: "Language toolchain: node | python | go"
+        required: true
+        type: string
+      node-version:
+        required: false
+        type: string
+        default: "20"
+      python-version:
+        required: false
+        type: string
+        default: "3.12"
+      go-version:
+        required: false
+        type: string
+        default: "1.22"
+      working-directory:
+        required: false
+        type: string
+        default: "."
+      coverage-threshold:
+        required: false
+        type: number
+        default: 0
+      runs-on:
+        required: false
+        type: string
+        default: "ubuntu-24.04"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reusable-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: lint · typecheck · test · build (${{ inputs.language }})
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit # start in audit; tighten to 'block' with an allowlist once stable
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # ---- Node.js ----
+      - name: Setup Node.js
+        if: inputs.language == 'node'
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - name: Install (node)
+        if: inputs.language == 'node'
+        run: npm ci
+      - name: Lint (node)
+        if: inputs.language == 'node'
+        run: npm run lint --if-present
+      - name: Format check (node)
+        if: inputs.language == 'node'
+        run: npm run format:check --if-present
+      - name: Typecheck (node)
+        if: inputs.language == 'node'
+        run: npm run typecheck --if-present
+      - name: Test with coverage (node)
+        if: inputs.language == 'node'
+        run: npm test --if-present -- --coverage
+      - name: Build (node)
+        if: inputs.language == 'node'
+        run: npm run build --if-present
+
+      # ---- Python ----
+      - name: Setup Python
+        if: inputs.language == 'python'
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+      - name: Install (python)
+        if: inputs.language == 'python'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" || pip install -r requirements-dev.txt
+      - name: Lint (python · ruff)
+        if: inputs.language == 'python'
+        run: ruff check .
+      - name: Format check (python · ruff)
+        if: inputs.language == 'python'
+        run: ruff format --check .
+      - name: Typecheck (python · mypy)
+        if: inputs.language == 'python'
+        run: mypy .
+      - name: Test with coverage (python · pytest)
+        if: inputs.language == 'python'
+        run: pytest --cov --cov-report=term-missing --cov-report=xml
+
+      # ---- Go ----
+      - name: Setup Go
+        if: inputs.language == 'go'
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+      - name: Format check (go)
+        if: inputs.language == 'go'
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'Run: gofmt -w .'; exit 1; }
+      - name: Vet (go)
+        if: inputs.language == 'go'
+        run: go vet ./...
+      - name: Lint (go · golangci-lint)
+        if: inputs.language == 'go'
+        uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
+        with:
+          working-directory: ${{ inputs.working-directory }}
+      - name: Test with coverage (go)
+        if: inputs.language == 'go'
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Build (go)
+        if: inputs.language == 'go'
+        run: go build ./...
+
+      # ---- Coverage gate (language-agnostic) ----
+      - name: Coverage gate
+        if: inputs.coverage-threshold > 0
+        env:
+          THRESHOLD: ${{ inputs.coverage-threshold }}
+          LANG_INPUT: ${{ inputs.language }}
+        run: |
+          set -euo pipefail
+          echo "Enforcing minimum line coverage: ${THRESHOLD}%"
+          pct=""
+          if [ "${LANG_INPUT}" = "go" ] && [ -f coverage.out ]; then
+            pct="$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/,"",$3); print $3}')"
+          elif [ -f coverage.xml ]; then
+            # Cobertura line-rate (python / many JS reporters)
+            pct="$(python3 - <<'PY'
+import re,sys
+m=re.search(r'line-rate="([0-9.]+)"', open('coverage.xml').read())
+print(round(float(m.group(1))*100,2) if m else 0)
+PY
+)"
+          elif [ -f coverage/coverage-summary.json ]; then
+            pct="$(node -e "process.stdout.write(String(require('./coverage/coverage-summary.json').total.lines.pct))")"
+          fi
+          if [ -z "${pct}" ]; then
+            echo "::error::Could not locate a coverage report to enforce the gate."; exit 1
+          fi
+          echo "Measured coverage: ${pct}%"
+          awk -v p="${pct}" -v t="${THRESHOLD}" 'BEGIN { exit (p+0 < t+0) ? 1 : 0 }' \
+            || { echo "::error::Coverage ${pct}% is below threshold ${THRESHOLD}%"; exit 1; }

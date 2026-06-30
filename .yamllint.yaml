@@ -1,0 +1,23 @@
+# yamllint configuration. Tuned for GitHub Actions workflows (the implicit "on:" key, longer lines).
+extends: default
+
+rules:
+  line-length:
+    max: 140
+    level: warning
+  document-start: disable
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  truthy:
+    # GitHub Actions uses "on:" which yamllint would otherwise flag.
+    allowed-values: ["true", "false", "on", "off"]
+    check-keys: false
+  braces:
+    max-spaces-inside: 1
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+
+ignore: |
+  .github/ISSUE_TEMPLATE/
