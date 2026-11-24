@@ -141,7 +141,8 @@ jobs:
           cache: true
       - name: Format check (go)
         if: inputs.language == 'go'
-        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'Run: gofmt -w .'; exit 1; }
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; echo 'Run: gofmt -w .'; exit 1; }
       - name: Vet (go)
         if: inputs.language == 'go'
         run: go vet ./...
@@ -171,12 +172,7 @@ jobs:
             pct="$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/,"",$3); print $3}')"
           elif [ -f coverage.xml ]; then
             # Cobertura line-rate (python / many JS reporters)
-            pct="$(python3 - <<'PY'
-import re,sys
-m=re.search(r'line-rate="([0-9.]+)"', open('coverage.xml').read())
-print(round(float(m.group(1))*100,2) if m else 0)
-PY
-)"
+            pct="$(python3 -c 'import re; m=re.search(r"line-rate=\"([0-9.]+)\"", open("coverage.xml").read()); print(round(float(m.group(1))*100, 2) if m else 0)')"
           elif [ -f coverage/coverage-summary.json ]; then
             pct="$(node -e "process.stdout.write(String(require('./coverage/coverage-summary.json').total.lines.pct))")"
           fi

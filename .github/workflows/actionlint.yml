@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      checks: write          # reviewdog github-check reporter (actionlint annotations)
       security-events: write # zizmor SARIF upload
     steps:
       - name: Harden the runner
