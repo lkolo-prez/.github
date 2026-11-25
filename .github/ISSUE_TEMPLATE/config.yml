@@ -2,14 +2,14 @@
 blank_issues_enabled: false
 contact_links:
   - name: 🔒 Report a security vulnerability (private)
-    url: https://github.com/aircloud/.github/security/advisories/new
+    url: https://github.com/lkolo-prez/.github/security/advisories/new
     about: "Please report vulnerabilities privately. Do NOT open a public issue. See SECURITY.md."
-  - name: 💬 Questions & discussions
-    url: https://github.com/orgs/aircloud/discussions
-    about: "Ask how-to questions and discuss ideas in GitHub Discussions."
+  - name: 💬 Questions
+    url: https://aircloud.com.pl/en/contact/
+    about: "Ask AIRCLOUD through the contact form on aircloud.com.pl."
   - name: 📚 Documentation & reusable workflows
-    url: https://github.com/aircloud/.github#reusable-workflows
+    url: https://github.com/lkolo-prez/.github#reusable-workflows
     about: "Read about the org-default community files and reusable CI/CD workflows."
   - name: 🆘 Support policy
-    url: https://github.com/aircloud/.github/blob/main/SUPPORT.md
+    url: https://github.com/lkolo-prez/.github/blob/main/SUPPORT.md
     about: "How to get help and what response to expect."

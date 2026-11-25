@@ -1,9 +1,9 @@
 # Security Policy
 
-> This is the **organization-default** security policy for the `aircloud` org. Repositories that do not ship
+> This is the **organization-default** security policy for AIRCLOUD repositories. Repositories that do not ship
 > their own `SECURITY.md` inherit this one. Individual repos MAY override it with stricter, project-specific terms.
 
-We take the security of our software and infrastructure seriously. Thank you for helping keep `aircloud` and our
+We take the security of our software and infrastructure seriously. Thank you for helping keep AIRCLOUD and our
 users safe through **coordinated disclosure**.
 
 ## Supported versions
@@ -25,7 +25,7 @@ Use one of these **private** channels:
 1. **GitHub Private Vulnerability Reporting (preferred).**
    Go to the affected repository → **Security** tab → **Report a vulnerability**.
    This routes to the maintainers privately and lets us collaborate and request a CVE.
-2. **Email:** `security@aircloud.example` — encrypt with our PGP key if the report is sensitive (key below).
+2. **Email:** `office@aircloud.com.pl`.
 
 Please include:
 - A description of the issue and its impact.
@@ -35,13 +35,13 @@ Please include:
 
 ### What is in scope
 
-- Source code, container images, and Infrastructure-as-Code published under the `aircloud` org.
-- CI/CD reusable workflows in `aircloud/.github`.
+- Source code, container images, and Infrastructure-as-Code published under the `lkolo-prez` account and the `AIRCLOUD-PL` organisation.
+- CI/CD reusable workflows in `lkolo-prez/.github`.
 
 ### Out of scope
 
 - Findings that require physical access, social engineering of staff, or DoS via volumetric traffic.
-- Vulnerabilities in third-party dependencies that already have an upstream advisory and no `aircloud`-specific
+- Vulnerabilities in third-party dependencies that already have an upstream advisory and no AIRCLOUD-specific
   exploit path (report those upstream; tell us so we can bump).
 
 ## Response SLA
@@ -72,42 +72,25 @@ Artifacts we publish are:
 Verify an image signature:
 
 ```bash
-cosign verify ghcr.io/aircloud/<image>@<digest> \
-  --certificate-identity-regexp '^https://github.com/aircloud/' \
+cosign verify ghcr.io/lkolo-prez/<image>@<digest> \
+  --certificate-identity-regexp '^https://github.com/lkolo-prez/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 ## security.txt
 
-A machine-readable policy is published per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116):
+A machine-readable policy is published per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116) at
+<https://aircloud.com.pl/.well-known/security.txt>:
 
 ```
-# https://aircloud.example/.well-known/security.txt
-Contact: mailto:security@aircloud.example
-Contact: https://github.com/aircloud/.github/security/advisories/new
-Encryption: https://aircloud.example/.well-known/pgp-key.txt
-Policy: https://github.com/aircloud/.github/blob/main/SECURITY.md
-Acknowledgments: https://github.com/aircloud/.github/security/advisories
-Preferred-Languages: en, pl
-Canonical: https://aircloud.example/.well-known/security.txt
-Expires: 2026-12-31T23:59:59.000Z
+Contact: mailto:office@aircloud.com.pl
+Expires: 2027-11-23T00:00:00.000Z
+Preferred-Languages: pl, en
+Canonical: https://aircloud.com.pl/.well-known/security.txt
+Policy: https://aircloud.com.pl/privacy
 ```
-
-> Host the file at `https://aircloud.example/.well-known/security.txt` and keep `Expires` in the future
-> (rotate at least annually).
 
 ## PGP key
 
-Encrypt sensitive reports to `security@aircloud.example`.
-
-> **Placeholder** — replace the block below with your real ASCII-armored public key before publishing.
-> Verify the fingerprint out-of-band.
-
-```text
------BEGIN PGP PUBLIC KEY BLOCK-----
-
-# PLACEHOLDER — replace with the real aircloud security PGP public key.
-# Fingerprint (placeholder): AAAA BBBB CCCC DDDD EEEE  FFFF 0000 1111 2222 3333
-
------END PGP PUBLIC KEY BLOCK-----
-```
+No PGP key is published. Send sensitive details through GitHub Private Vulnerability Reporting or ask for a
+secure channel at `office@aircloud.com.pl` before sending them.

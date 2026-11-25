@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for the idea! For substantial or cross-cutting changes (especially to the reusable
         workflows), prefix the title with **`RFC:`** and fill in the design and migration sections —
-        see [GOVERNANCE.md](https://github.com/aircloud/.github/blob/main/GOVERNANCE.md#rfc-process).
+        see [GOVERNANCE.md](https://github.com/lkolo-prez/.github/blob/main/GOVERNANCE.md#rfc-process).
 
   - type: checkboxes
     id: preflight

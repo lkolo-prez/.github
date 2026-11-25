@@ -1,18 +1,18 @@
 # Support
 
-> Organization-default support policy for `aircloud`. Inherited by repositories that do not ship their own.
+> Organization-default support policy for AIRCLOUD repositories. Inherited by repositories that do not ship their own.
 
-Thanks for using `aircloud` projects! Here is how to get help **efficiently** and where each kind of request belongs.
+Thanks for using AIRCLOUD projects! Here is how to get help **efficiently** and where each kind of request belongs.
 
 ## Where to go
 
 | I have a… | Use |
 | --- | --- |
-| **Question / how-do-I** | [GitHub Discussions](https://github.com/orgs/aircloud/discussions) (Q&A category) |
+| **Question / how-do-I** | [Contact form](https://aircloud.com.pl/en/contact/) |
 | **Bug report** | The repo's **Issues** → *Bug report* template |
 | **Feature request** | The repo's **Issues** → *Feature request* template |
 | **Security vulnerability** | **Do not open an issue.** Follow [`SECURITY.md`](SECURITY.md) (private reporting) |
-| **Reusable-workflow / CI question** | Discussions in [`aircloud/.github`](https://github.com/aircloud/.github/discussions) |
+| **Reusable-workflow / CI question** | [Contact form](https://aircloud.com.pl/en/contact/) |
 
 ## Before you open an issue
 
@@ -33,4 +33,4 @@ basis. There is **no commercial SLA for support requests** — the SLA in [`SECU
 
 ## Commercial support
 
-For paid support, training, or consulting, contact `hello@aircloud.example`.
+For paid support, training, or consulting, contact `office@aircloud.com.pl`.

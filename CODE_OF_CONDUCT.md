@@ -1,6 +1,6 @@
 # Contributor Covenant Code of Conduct
 
-> Organization-default Code of Conduct for `aircloud`. Inherited by repositories that do not ship their own.
+> Organization-default Code of Conduct for AIRCLOUD repositories. Inherited by repositories that do not ship their own.
 
 ## Our Pledge
 
@@ -48,7 +48,7 @@ representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders
-responsible for enforcement at **`conduct@aircloud.example`**. All complaints will be reviewed and investigated
+responsible for enforcement at **`office@aircloud.com.pl`**. All complaints will be reviewed and investigated
 promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.

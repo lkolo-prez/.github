@@ -2,11 +2,11 @@
 # Replace or remove entries that do not apply. Leave a key empty/omit it rather than committing a placeholder
 # that 404s, since GitHub renders these as live "Sponsor" buttons.
 
-github: [aircloud]            # GitHub Sponsors org/users
+# github: [lkolo-prez]            # GitHub Sponsors (not enabled)
 # open_collective: aircloud
 # ko_fi: aircloud
 # tidelift: "npm/aircloud"    # platform-name/package-name
 # community_bridge: aircloud
 # liberapay: aircloud
 # polar: aircloud
-# custom: ["https://aircloud.example/sponsor"]
+# custom: ["https://aircloud.com.pl/en/contact/"]

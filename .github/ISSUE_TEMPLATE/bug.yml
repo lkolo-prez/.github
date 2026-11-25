@@ -1,5 +1,5 @@
 name: "Bug report"
-description: "Report a reproducible problem in an aircloud project."
+description: "Report a reproducible problem in an AIRCLOUD project."
 title: "fix: <short description>"
 labels: ["bug", "needs-triage"]
 body:
@@ -9,7 +9,7 @@ body:
         Thanks for reporting a bug! Please fill in the details below.
 
         > [!CAUTION]
-        > **Do not report security vulnerabilities here.** Follow our [Security Policy](https://github.com/aircloud/.github/blob/main/SECURITY.md) for private disclosure.
+        > **Do not report security vulnerabilities here.** Follow our [Security Policy](https://github.com/lkolo-prez/.github/blob/main/SECURITY.md) for private disclosure.
 
   - type: checkboxes
     id: preflight
@@ -55,7 +55,7 @@ body:
     id: version
     attributes:
       label: Version / commit SHA / image digest
-      placeholder: "v1.4.2 / abcd123 / ghcr.io/aircloud/app@sha256:..."
+      placeholder: "v1.4.2 / abcd123 / ghcr.io/lkolo-prez/app@sha256:..."
     validations:
       required: true
 
